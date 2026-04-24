@@ -5,16 +5,16 @@ function SplashCursor({
   SIM_RESOLUTION = 128,
   DYE_RESOLUTION = 1440,
   CAPTURE_RESOLUTION = 512,
-  DENSITY_DISSIPATION = 3.5,
-  VELOCITY_DISSIPATION = 2,
+  DENSITY_DISSIPATION = 2.8,
+  VELOCITY_DISSIPATION = 1.4,
   PRESSURE = 0.1,
   PRESSURE_ITERATIONS = 20,
-  CURL = 3,
-  SPLAT_RADIUS = 0.2,
-  SPLAT_FORCE = 6000,
+  CURL = 8,
+  SPLAT_RADIUS = 0.18,
+  SPLAT_FORCE = 5000,
   SHADING = true,
-  COLOR_UPDATE_SPEED = 10,
-  BACK_COLOR = { r: 0.5, g: 0, b: 0 },
+  COLOR_UPDATE_SPEED = 4,
+  BACK_COLOR = { r: 0, g: 0, b: 0 },
   TRANSPARENT = true
 }) {
   const canvasRef = useRef(null);
@@ -756,7 +756,7 @@ function SplashCursor({
       const dt = calcDeltaTime();
       if (resizeCanvas()) initFramebuffers();
       updateColors(dt);
-      applyInputs();
+      applyInputs(dt);
       step(dt);
       render(null);
       requestAnimationFrame(updateFrame);
@@ -791,12 +791,48 @@ function SplashCursor({
       }
     }
 
-    function applyInputs() {
-      pointers.forEach((p) => {
-        if (p.moved) {
-          p.moved = false;
-          splatPointer(p);
+    // Autonomous agents with Lissajous-like paths
+    const agents = Array.from({ length: 6 }, (_, i) => {
+      const spread = (i / 6) * Math.PI * 2;
+      return {
+        t: spread,
+        freqX: 0.22 + (i % 3) * 0.13,
+        freqY: 0.17 + (i % 4) * 0.11,
+        ampX: 0.22 + Math.random() * 0.18,
+        ampY: 0.20 + Math.random() * 0.18,
+        centerX: 0.25 + Math.random() * 0.50,
+        centerY: 0.25 + Math.random() * 0.50,
+        color: null,
+        prevX: 0.5,
+        prevY: 0.5,
+        colorTimer: 0,
+        colorInterval: 2.5 + Math.random() * 3,
+      };
+    });
+
+    function applyInputs(dt) {
+      agents.forEach((a) => {
+        if (!a.color) a.color = generateColor();
+
+        // Refresh color periodically per agent
+        a.colorTimer += dt;
+        if (a.colorTimer >= a.colorInterval) {
+          a.colorTimer = 0;
+          a.color = generateColor();
         }
+
+        a.t += dt * 0.38;
+
+        const x = a.centerX + Math.sin(a.t * a.freqX) * a.ampX;
+        const y = a.centerY + Math.cos(a.t * a.freqY) * a.ampY;
+
+        const dx = (x - a.prevX) * config.SPLAT_FORCE;
+        const dy = -(y - a.prevY) * config.SPLAT_FORCE;
+
+        splat(x, y, dx, dy, a.color);
+
+        a.prevX = x;
+        a.prevY = y;
       });
     }
 
@@ -1010,9 +1046,9 @@ function SplashCursor({
 
     function generateColor() {
       let c = HSVtoRGB(Math.random(), 1.0, 1.0);
-      c.r *= 0.15;
-      c.g *= 0.15;
-      c.b *= 0.15;
+      c.r *= 0.04;
+      c.g *= 0.04;
+      c.b *= 0.04;
       return c;
     }
 
@@ -1091,76 +1127,6 @@ function SplashCursor({
       return hash;
     }
 
-    window.addEventListener('mousedown', (e) => {
-      let pointer = pointers[0];
-      let posX = scaleByPixelRatio(e.clientX);
-      let posY = scaleByPixelRatio(e.clientY);
-      updatePointerDownData(pointer, -1, posX, posY);
-      clickSplat(pointer);
-    });
-
-    document.body.addEventListener('mousemove', function handleFirstMouseMove(e) {
-      let pointer = pointers[0];
-      let posX = scaleByPixelRatio(e.clientX);
-      let posY = scaleByPixelRatio(e.clientY);
-      let color = generateColor();
-      updateFrame();
-      updatePointerMoveData(pointer, posX, posY, color);
-      document.body.removeEventListener('mousemove', handleFirstMouseMove);
-    });
-
-    window.addEventListener('mousemove', (e) => {
-      let pointer = pointers[0];
-      let posX = scaleByPixelRatio(e.clientX);
-      let posY = scaleByPixelRatio(e.clientY);
-      let color = pointer.color;
-      updatePointerMoveData(pointer, posX, posY, color);
-    });
-
-    document.body.addEventListener('touchstart', function handleFirstTouchStart(e) {
-      const touches = e.targetTouches;
-      let pointer = pointers[0];
-      for (let i = 0; i < touches.length; i++) {
-        let posX = scaleByPixelRatio(touches[i].clientX);
-        let posY = scaleByPixelRatio(touches[i].clientY);
-        updateFrame();
-        updatePointerDownData(pointer, touches[i].identifier, posX, posY);
-      }
-      document.body.removeEventListener('touchstart', handleFirstTouchStart);
-    });
-
-    window.addEventListener('touchstart', (e) => {
-      const touches = e.targetTouches;
-      let pointer = pointers[0];
-      for (let i = 0; i < touches.length; i++) {
-        let posX = scaleByPixelRatio(touches[i].clientX);
-        let posY = scaleByPixelRatio(touches[i].clientY);
-        updatePointerDownData(pointer, touches[i].identifier, posX, posY);
-      }
-    });
-
-    window.addEventListener(
-      'touchmove',
-      (e) => {
-        const touches = e.targetTouches;
-        let pointer = pointers[0];
-        for (let i = 0; i < touches.length; i++) {
-          let posX = scaleByPixelRatio(touches[i].clientX);
-          let posY = scaleByPixelRatio(touches[i].clientY);
-          updatePointerMoveData(pointer, posX, posY, pointer.color);
-        }
-      },
-      false
-    );
-
-    window.addEventListener('touchend', (e) => {
-      const touches = e.changedTouches;
-      let pointer = pointers[0];
-      for (let i = 0; i < touches.length; i++) {
-        updatePointerUpData(pointer);
-      }
-    });
-
     updateFrame();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -1186,7 +1152,7 @@ function SplashCursor({
         position: 'fixed',
         top: 0,
         left: 0,
-        zIndex: 50,
+        zIndex: 0,
         pointerEvents: 'none',
         width: '100%',
         height: '100%',

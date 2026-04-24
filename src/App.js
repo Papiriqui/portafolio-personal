@@ -617,7 +617,7 @@ export default function App() {
       <Nav mode={mode} toggleMode={toggleMode} onOpenDrawer={() => setDrawerOpen(true)} />
       <MobileDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
 
-      <Container maxWidth="lg" sx={{ mt: { xs: 9, sm: 11 }, mb: 8 }}>
+      <Container maxWidth="lg" sx={{ mt: { xs: 9, sm: 11 }, mb: 8, position: 'relative', zIndex: 1 }}>
 
         {/* ── HERO ── */}
         <Element name="home">
