@@ -726,7 +726,7 @@ export default function App() {
                     <Button
                       variant="contained"
                       startIcon={<FileDownload />}
-                      href="/JHONATAN.pdf"
+                      href={`${process.env.PUBLIC_URL}/img/CVAUTOMATIZANDOOO.pdf`}
                       download
                       sx={{ background: 'linear-gradient(90deg, #4f46e5, #06b6d4)', '&:hover': { opacity: 0.9 } }}
                     >
