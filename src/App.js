@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import SplashCursor from './components/SplashCursor';
+import { checkAndRespond } from './utils/contentFilter';
 
 import {
   ThemeProvider,
@@ -443,10 +444,30 @@ function Chatbot({ mode }) {
 
   const sendMessage = (text) => {
     if (!text.trim()) return;
+
+    const userMessage = text;
+
+
+    const userCheck = checkAndRespond(userMessage);
+    if (userCheck.blocked) {
+      setMessages((prev) => [
+        ...prev,
+        { from: 'user', text: userMessage },
+        { from: 'bot', text: userCheck.response },
+      ]);
+      setShowSuggestions(false);
+      setInput('');
+      return;
+    }
+
+    const rawBotReply = getBotResponse(userMessage);
+    const botCheck = checkAndRespond(rawBotReply);
+    const botReply = botCheck.blocked ? botCheck.response : rawBotReply;
+
     setMessages((prev) => [
       ...prev,
-      { from: 'user', text },
-      { from: 'bot', text: getBotResponse(text) },
+      { from: 'user', text: userMessage },
+      { from: 'bot', text: botReply },
     ]);
     setShowSuggestions(false);
     setInput('');
